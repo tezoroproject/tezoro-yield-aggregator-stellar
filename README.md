@@ -1,38 +1,25 @@
-# Tezoro Yield Aggregator - Stellar
+# Tezoro Yield Aggregator
 
-> **Status: Draft / Work in Progress**
+Smart contracts for the Tezoro yield aggregator. Accepts USDC deposits, mints yield-bearing tUSDC shares, and distributes capital across lending strategies via a keeper-managed rebalancing system.
 
-Soroban smart contracts for the Tezoro yield aggregator on Stellar. Accepts USDC deposits, mints yield-bearing tUSDC shares, and distributes capital across lending strategies (starting with Blend v2).
-
-## Architecture
+## Repository Structure
 
 ```
-User (USDC) --> TezoroVault --> Strategy adapters --> DeFi protocols
-                  |                                      |
-                  |-- idle buffer (3%)                   |-- Blend v2
-                  |-- share accounting (tUSDC)           |-- (future: Aquarius, Soroswap)
-                  |-- cross-chain bridged balance
-                  |
-              Keeper (off-chain)
-                  |-- rebalancing
-                  |-- yield harvesting
-                  |-- cross-chain attestation
+Soroban/    -- Soroban contracts for Stellar (work in progress).
+Solidity/   -- Production EVM contracts (Foundry). Deployed on Ethereum, Base, Polygon, BSC, Optimism.
 ```
 
-### Contracts
+## Soroban (Stellar)
+
+> **Status: Work in Progress**
+
+SEP-41 compatible vault for Stellar. Starting with Blend v2 strategy.
 
 | Contract | Description |
 |----------|-------------|
-| **vault** | Core vault implementing SEP-41 token interface. Handles deposits, redemptions, share accounting with virtual offset (inflation attack protection), strategy management, and cross-chain balance attestation. |
-| **blend-strategy** | Strategy adapter for Blend v2 lending protocol. Deposits USDC as collateral via `submit(SupplyCollateral)`, monitors pool utilization and backstop health. |
-| **mock-strategy** | Test-only strategy that simulates yield accrual. Used for vault integration testing without external protocol dependencies. |
-
-### Roles
-
-- **Admin** -- configuration, strategy management, unpause
-- **Guardian** -- emergency pause (no fund access)
-- **Keeper** -- rebalancing, tracked balance updates, bridged balance attestation (cannot extract user funds)
-- **User** -- deposit, withdraw
+| **vault** | Core vault -- SEP-41 token interface, deposit/redeem, share accounting with virtual offset, strategy management, cross-chain balance attestation. |
+| **blend-strategy** | Blend v2 lending adapter (SupplyCollateral / WithdrawCollateral). |
+| **mock-strategy** | Test mock with simulated yield. |
 
 ### Key Design Decisions
 
@@ -40,31 +27,24 @@ User (USDC) --> TezoroVault --> Strategy adapters --> DeFi protocols
 - **Internal tracked balance** per strategy prevents donation attacks
 - **Bridged balance attestation** -- keeper reports EVM-side capital so share price reflects total cross-chain AUM
 - **Idle buffer** -- configurable % of TVL held uninvested for instant small withdrawals
-- **Withdrawals always open** -- users can exit at any time; vault never locks funds
 
-## Prerequisites
+## Solidity (EVM)
 
-- [Rust](https://rustup.rs/) (stable toolchain)
-- Soroban CLI: `cargo install --locked soroban-cli`
-- Wasm target: `rustup target add wasm32-unknown-unknown`
+ERC-4626 vault with multi-strategy architecture. Supports Aave V3, Compound V3, Morpho Blue, Fluid, and generic ERC-4626 strategies.
 
-## Build
+| Contract | Description |
+|----------|-------------|
+| **TezoroV1_1** | Core vault -- ERC-4626 share accounting, strategy management, performance fees, keeper-driven allocation. |
+| **RewardsModule** | Claims and swaps protocol reward tokens (COMP, MORPHO, etc.) back into the vault. |
+| **AaveV3Strategy** | Aave V3 lending adapter. |
+| **CompoundV3Strategy** | Compound V3 (Comet) adapter. |
+| **MorphoBlueMultiStrategy** | Morpho Blue multi-market adapter with per-market allocation. |
+| **ERC4626MultiStrategy** | Generic adapter for any ERC-4626 vault (Fluid, MetaMorpho, etc.). |
+| **FluidStrategy** | Fluid lending adapter. |
 
-```bash
-cargo build --target wasm32-unknown-unknown --release
-```
+## Roles
 
-## Test
-
-```bash
-cargo test
-```
-
-## Project Structure
-
-```
-contracts/
-  vault/src/lib.rs            -- core vault (SEP-41, deposit/redeem, strategy mgmt, keeper ops)
-  blend-strategy/src/lib.rs   -- Blend v2 adapter (SupplyCollateral / WithdrawCollateral)
-  mock-strategy/src/lib.rs    -- test mock with simulated yield
-```
+- **Admin** -- configuration, strategy management, unpause
+- **Guardian** -- emergency pause (no fund access)
+- **Keeper** -- rebalancing, allocation, reward harvesting (cannot extract user funds)
+- **User** -- deposit, withdraw
