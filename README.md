@@ -11,7 +11,8 @@ Solidity/   -- Production EVM contracts (Foundry). Deployed on Ethereum, Base, P
 
 ## Soroban (Stellar)
 
-> **Status: Work in Progress**
+> [!CAUTION]
+> **WORK IN PROGRESS** -- Soroban contracts are under active development and NOT yet deployed. Interfaces and storage layout may change without notice.
 
 SEP-41 compatible vault for Stellar. Starting with Blend v2 strategy.
 
