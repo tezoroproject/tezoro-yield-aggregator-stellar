@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Soroban contracts (fmt + clippy + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.0"
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --exclude mainnet-fork-tests --all-targets --locked -- -D warnings
+      # mainnet-fork-tests is excluded because it `include_bytes!`es
+      # optimized WASM artifacts that require a prior `stellar contract
+      # build` step (see README for the full local reproduction flow).
+      - run: cargo test --workspace --exclude mainnet-fork-tests --locked
+
+  keeper:
+    name: Stellar keeper (typecheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: keeper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: keeper/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck

@@ -1,3 +1,7 @@
-Soroban/target/
-.soroban/
+contracts/target/
+contracts/coverage/
+contracts/.soroban/
+keeper/node_modules/
+keeper/dist/
 .env
+.DS_Store

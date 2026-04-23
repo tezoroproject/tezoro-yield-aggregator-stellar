@@ -1,0 +1,23 @@
+[package]
+name = "mock-strategy"
+version = "0.1.0"
+edition = "2021"
+license = "UNLICENSED"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+tezoro-common = { path = "../tezoro-common" }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+
+[features]
+testutils = ["soroban-sdk/testutils"]
+
+[lints]
+workspace = true

@@ -1,0 +1,95 @@
+{
+  "chain": "stellar",
+  "network": "testnet",
+  "markets": [
+    {
+      "chain": "stellar",
+      "network": "testnet",
+      "protocol": "blend",
+      "poolId": "CCEBVDYM32YNYCVNRXQKDFFPISJJCV557CDZEIRBEE4NCV4KHPQ44HGF",
+      "poolName": "Blend Testnet V2",
+      "asset": {
+        "id": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+        "symbol": "XLM",
+        "decimals": 7
+      },
+      "borrowApr": 1.511347,
+      "supplyApr": 1.0493058,
+      "estSupplyApy": 1.8259911496244206,
+      "estBorrowApy": 3.5187102538241373,
+      "totalSupplied": "602312591585462",
+      "totalBorrowed": "464813427815838",
+      "utilization": 0.7717147,
+      "maxUtilization": 0.95,
+      "fetchedAt": 1776871525,
+      "latestLedger": 2173179
+    },
+    {
+      "chain": "stellar",
+      "network": "testnet",
+      "protocol": "blend",
+      "poolId": "CCEBVDYM32YNYCVNRXQKDFFPISJJCV557CDZEIRBEE4NCV4KHPQ44HGF",
+      "poolName": "Blend Testnet V2",
+      "asset": {
+        "id": "CAZAQB3D7KSLSNOSQKYD2V4JP5V2Y3B4RDJZRLBFCCIXDCTE3WHSY3UE",
+        "symbol": "wETH",
+        "decimals": 7
+      },
+      "borrowApr": 3.34629,
+      "supplyApr": 2.8046106,
+      "estSupplyApy": 14.35730961698743,
+      "estBorrowApy": 26.967520560746394,
+      "totalSupplied": "424092578",
+      "totalBorrowed": "408269638",
+      "utilization": 0.9626899,
+      "maxUtilization": 0.95,
+      "fetchedAt": 1776871525,
+      "latestLedger": 2173179
+    },
+    {
+      "chain": "stellar",
+      "network": "testnet",
+      "protocol": "blend",
+      "poolId": "CCEBVDYM32YNYCVNRXQKDFFPISJJCV557CDZEIRBEE4NCV4KHPQ44HGF",
+      "poolName": "Blend Testnet V2",
+      "asset": {
+        "id": "CAP5AMC2OHNVREO66DFIN6DHJMPOBAJ2KCDDIMFBR7WWJH5RZBFM3UEI",
+        "symbol": "wBTC",
+        "decimals": 7
+      },
+      "borrowApr": 2.23557,
+      "supplyApr": 1.815841,
+      "estSupplyApy": 4.958719902471218,
+      "estBorrowApy": 8.288263021468193,
+      "totalSupplied": "35685247",
+      "totalBorrowed": "33699523",
+      "utilization": 0.9443545,
+      "maxUtilization": 0.95,
+      "fetchedAt": 1776871525,
+      "latestLedger": 2173179
+    },
+    {
+      "chain": "stellar",
+      "network": "testnet",
+      "protocol": "blend",
+      "poolId": "CCEBVDYM32YNYCVNRXQKDFFPISJJCV557CDZEIRBEE4NCV4KHPQ44HGF",
+      "poolName": "Blend Testnet V2",
+      "asset": {
+        "id": "CAQCFVLOBK5GIULPNZRGATJJMIZL5BSP7X5YJVMGCPTUEPFM4AVSRCJU",
+        "symbol": "USDC",
+        "decimals": 7
+      },
+      "borrowApr": 0.0016634,
+      "supplyApr": 0.0005635,
+      "estSupplyApy": 0.000563655741052882,
+      "estBorrowApy": 0.0016647804206288974,
+      "totalSupplied": "933431909982",
+      "totalBorrowed": "351397126448",
+      "utilization": 0.3764572,
+      "maxUtilization": 0.95,
+      "fetchedAt": 1776871525,
+      "latestLedger": 2173179
+    }
+  ],
+  "fetchedAt": 1776871525
+}

@@ -1,0 +1,16 @@
+[package]
+name = "mainnet-fork-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Integration tests: Tezoro protocol on mainnet fork"
+
+[lib]
+doctest = false
+
+[dev-dependencies]
+soroban-fork = "0.1"
+soroban-sdk = { workspace = true, features = ["testutils"] }
+
+[lints]
+workspace = true

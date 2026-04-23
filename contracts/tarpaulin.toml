@@ -1,0 +1,34 @@
+# cargo-tarpaulin configuration for the Soroban workspace.
+#
+# Usage:
+#   cargo install cargo-tarpaulin  # once
+#   cd packages/contracts/soroban
+#   cargo tarpaulin                # runs the `default` profile below
+#
+# Tarpaulin traces coverage by instrumenting the compiled binaries; it
+# doesn't play well with the `wasm32-unknown-unknown` target we ship to
+# mainnet, so we measure on the host target only. The integration fork
+# tests (`tests/mainnet-fork`) are excluded because they require network
+# access and would bloat CI runs.
+
+[default]
+workspace = true
+all-features = false
+out = ["Stdout", "Html", "Lcov"]
+output-dir = "coverage"
+# Exclusions:
+#   - mainnet-fork-tests (package): integration harness that requires live
+#     Stellar RPC; the tests themselves aren't line-coverage-meaningful.
+#
+# The fork harness itself lives in a separate crate now
+# (crates.io: `soroban-fork`), so it's no longer part of this workspace
+# and doesn't need an exclusion rule.
+exclude = ["mainnet-fork-tests"]
+exclude-files = ["tests/mainnet-fork/**/*", "target/**/*"]
+timeout = "300s"
+# Ignore panics-in-release; we're measuring unit behavior.
+ignore-panics = true
+follow-exec = true
+# Line coverage is the defensible primary metric for Soroban contracts —
+# branch coverage with tarpaulin is still experimental on stable.
+engine = "Llvm"

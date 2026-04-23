@@ -1,0 +1,42 @@
+[workspace]
+resolver = "2"
+# `tools/*` is gone — the only member there, `soroban-fork`, was extracted
+# into its own crate (crates.io: `soroban-fork`, source:
+# https://github.com/lobotomoe/soroban-fork) and is consumed as a normal
+# dev-dependency by `tests/mainnet-fork` now.
+members = ["contracts/*", "tests/*"]
+
+[workspace.dependencies]
+soroban-sdk = "25.3.0"
+blend-contract-sdk = "2.25.0"
+
+# Workspace-wide lint policy. Two pragmatic allowances:
+#
+# * `inconsistent_digit_grouping` — Stellar amounts are conventionally written
+#   as `<whole>_<stroops7>` (e.g. `1_000_0000000` = 1000 with 7 decimal places),
+#   which matches how balances appear in explorers and protocol docs. Clippy's
+#   suggested uniform grouping hurts readability for domain experts.
+# * `too_many_arguments` — `initialize` on Soroban contracts routinely takes
+#   8–10 roles (admin, keeper, guardian, fee_recipient, asset, …) and the
+#   `#[contractimpl]` macro can't be split. Refactoring into a struct would
+#   lose the stable ABI surface soroban deployers rely on.
+#
+# Everything else stays deny-by-default so real issues don't get lost in
+# noise.
+[workspace.lints.clippy]
+inconsistent_digit_grouping = "allow"
+too_many_arguments = "allow"
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true

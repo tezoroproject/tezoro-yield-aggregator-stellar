@@ -1,0 +1,11 @@
+# Pinned toolchain for the Soroban contract workspace.
+#
+# The wasm32-unknown-unknown target is the deployment artifact; llvm-tools
+# is required by `cargo llvm-cov` / `cargo tarpaulin` when measuring branch
+# coverage. `rust-src` is pulled in because soroban-sdk re-builds core for
+# wasm with its own feature flags.
+[toolchain]
+channel = "1.94.0"
+components = ["rustfmt", "clippy", "llvm-tools-preview", "rust-src"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"
