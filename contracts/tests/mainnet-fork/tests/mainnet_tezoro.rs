@@ -199,7 +199,7 @@ fn args2(env: &Env, a: Val, b: Val) -> Vec<Val> {
 
 #[test]
 fn test_vault_deposit_redeem_on_mainnet() {
-    let env = ForkConfig::new(&mainnet_rpc())
+    let env = ForkConfig::new(mainnet_rpc())
         .build()
         .expect("fork build must succeed");
     env.mock_all_auths();
@@ -288,7 +288,7 @@ fn test_vault_deposit_redeem_on_mainnet() {
 
 #[test]
 fn test_multiuser_share_accounting() {
-    let env = ForkConfig::new(&mainnet_rpc())
+    let env = ForkConfig::new(mainnet_rpc())
         .build()
         .expect("fork build must succeed");
     env.mock_all_auths();
@@ -370,7 +370,7 @@ fn test_multiuser_share_accounting() {
 /// Our WASM talks to real mainnet Blend infrastructure.
 #[test]
 fn test_vault_strategy_blend_flow() {
-    let env = ForkConfig::new(&mainnet_rpc())
+    let env = ForkConfig::new(mainnet_rpc())
         .build()
         .expect("fork build must succeed");
     env.mock_all_auths();
@@ -485,7 +485,7 @@ fn test_vault_strategy_blend_flow() {
 
 #[test]
 fn test_vault_nav_with_market_prices() {
-    let env = ForkConfig::new(&mainnet_rpc())
+    let env = ForkConfig::new(mainnet_rpc())
         .build()
         .expect("fork build must succeed");
     env.mock_all_auths();
@@ -566,7 +566,7 @@ fn test_vault_nav_with_market_prices() {
 /// With warp: schedule -> warp 48h -> execute.
 #[test]
 fn test_upgrade_timelock_with_warp() {
-    let env = ForkConfig::new(&mainnet_rpc())
+    let env = ForkConfig::new(mainnet_rpc())
         .build()
         .expect("fork build must succeed");
     env.mock_all_auths();

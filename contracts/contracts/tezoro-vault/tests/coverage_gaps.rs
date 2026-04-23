@@ -360,8 +360,7 @@ fn test_deallocate_clamps_tracked_when_strategy_returns_more_than_tracked() {
 
 #[test]
 fn test_remove_strategy_preserves_other_entries() {
-    let (env, client, vault_addr, asset, _keeper, admin, strategy_a) =
-        setup_vault_with_strategy();
+    let (env, client, vault_addr, asset, _keeper, admin, strategy_a) = setup_vault_with_strategy();
 
     // Register a second mock strategy alongside the one setup created.
     let strategy_b = deploy_mock_strategy(&env, &admin, &vault_addr, &asset);
@@ -384,8 +383,7 @@ fn test_remove_strategy_preserves_other_entries() {
 
 #[test]
 fn test_redeem_waterfall_skips_empty_strategy_and_pulls_from_next() {
-    let (env, client, vault_addr, asset, keeper, admin, strategy_a) =
-        setup_vault_with_strategy();
+    let (env, client, vault_addr, asset, keeper, admin, strategy_a) = setup_vault_with_strategy();
 
     // Register a second strategy. Order matters: strategy_a (empty) is
     // iterated first, hitting the `available <= 0 -> continue` branch.
@@ -398,10 +396,7 @@ fn test_redeem_waterfall_skips_empty_strategy_and_pulls_from_next() {
 
     // Allocate only to strategy_b so strategy_a stays dry.
     client.allocate(&keeper, &strategy_b, &970_0000000);
-    assert_eq!(
-        MockStrategyClient::new(&env, &strategy_a).balance_of(),
-        0
-    );
+    assert_eq!(MockStrategyClient::new(&env, &strategy_a).balance_of(), 0);
 
     // Redeem half the user's position. idle (30) is short, waterfall runs:
     // strategy_a returns 0 -> continue, strategy_b covers the shortfall.
@@ -432,8 +427,7 @@ fn test_redeem_waterfall_skips_empty_strategy_and_pulls_from_next() {
 
 #[test]
 fn test_redeem_waterfall_partial_fill_then_break_across_three_strategies() {
-    let (env, client, vault_addr, asset, keeper, admin, strategy_a) =
-        setup_vault_with_strategy();
+    let (env, client, vault_addr, asset, keeper, admin, strategy_a) = setup_vault_with_strategy();
 
     let strategy_b = deploy_mock_strategy(&env, &admin, &vault_addr, &asset);
     let strategy_c = deploy_mock_strategy(&env, &admin, &vault_addr, &asset);
