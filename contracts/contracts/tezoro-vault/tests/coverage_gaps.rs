@@ -2,7 +2,7 @@
 //! `comprehensive.rs` and `security.rs` don't exercise.
 
 use mock_strategy::{MockStrategy, MockStrategyClient};
-use soroban_sdk::testutils::Address as _;
+use soroban_sdk::testutils::{Address as _, Ledger as _};
 use soroban_sdk::token::{StellarAssetClient, TokenClient};
 use soroban_sdk::{Address, Env, String};
 use tezoro_vault::{TezoroVault, TezoroVaultClient};
@@ -299,4 +299,215 @@ fn test_storage_defaults_reachable_post_init() {
     assert!(!client.is_paused());
 
     let _ = env; // keep the env alive for the borrow checker
+}
+
+// ---------------------------------------------------------------------------
+// Unknown-strategy guards on admin/keeper entry points
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_emergency_withdraw_rejects_unknown_strategy() {
+    let (env, client, _vault_addr, _asset, _user) = init_with_fee_bps(1500);
+    let unknown = Address::generate(&env);
+    let admin = client.admin();
+    assert!(client
+        .try_emergency_withdraw_strategy(&admin, &unknown)
+        .is_err());
+}
+
+#[test]
+fn test_update_tracked_balance_rejects_unknown_strategy() {
+    let (env, client, _vault_addr, _asset, _user) = init_with_fee_bps(1500);
+    let unknown = Address::generate(&env);
+    let keeper = client.keeper();
+    assert!(client
+        .try_update_tracked_balance(&keeper, &unknown, &100)
+        .is_err());
+}
+
+// ---------------------------------------------------------------------------
+// Saturating-sub in deallocate: strategy returns more than we tracked
+// (e.g. yield accrued externally). `tracked - withdrawn` would underflow,
+// so the vault clamps to 0. Exercised via MockStrategy::simulate_yield.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_deallocate_clamps_tracked_when_strategy_returns_more_than_tracked() {
+    let (env, client, _vault_addr, asset, keeper, admin, strategy_addr) =
+        setup_vault_with_strategy();
+
+    let user = Address::generate(&env);
+    StellarAssetClient::new(&env, &asset).mint(&user, &1_000_0000000);
+    client.deposit(&user, &1_000_0000000);
+    client.allocate(&keeper, &strategy_addr, &500_0000000);
+
+    // Strategy earns yield out-of-band — balance > tracked.
+    StellarAssetClient::new(&env, &asset).mint(&strategy_addr, &100_0000000);
+    let strategy = MockStrategyClient::new(&env, &strategy_addr);
+    strategy.simulate_yield(&admin, &100_0000000);
+
+    // Pull everything the strategy holds (600). tracked was 500, withdrawn
+    // is 600, so `new_tracked` takes the saturating `0` branch.
+    let withdrawn = client.deallocate(&keeper, &strategy_addr, &600_0000000);
+    assert_eq!(withdrawn, 600_0000000);
+    assert_eq!(client.tracked_balance(&strategy_addr), 0);
+}
+
+// ---------------------------------------------------------------------------
+// remove_strategy loop: when the list has multiple entries, the non-matching
+// arm (`else { new_strategies.push_back(s); }`) must also execute.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_remove_strategy_preserves_other_entries() {
+    let (env, client, vault_addr, asset, _keeper, admin, strategy_a) =
+        setup_vault_with_strategy();
+
+    // Register a second mock strategy alongside the one setup created.
+    let strategy_b = deploy_mock_strategy(&env, &admin, &vault_addr, &asset);
+    client.add_strategy(&admin, &strategy_b);
+
+    // Remove A — the loop now has to iterate past B (else-arm) and match on A.
+    client.remove_strategy(&admin, &strategy_a);
+
+    let remaining = client.get_strategies();
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining.get(0).unwrap(), strategy_b);
+}
+
+// ---------------------------------------------------------------------------
+// Redeem waterfall across multiple strategies: the first strategy is empty
+// (available_liquidity() == 0), forcing the `continue` arm; the second
+// strategy holds the funds and satisfies the shortfall. After that, the
+// `remaining <= 0 { break }` arm fires on any further iteration.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_redeem_waterfall_skips_empty_strategy_and_pulls_from_next() {
+    let (env, client, vault_addr, asset, keeper, admin, strategy_a) =
+        setup_vault_with_strategy();
+
+    // Register a second strategy. Order matters: strategy_a (empty) is
+    // iterated first, hitting the `available <= 0 -> continue` branch.
+    let strategy_b = deploy_mock_strategy(&env, &admin, &vault_addr, &asset);
+    client.add_strategy(&admin, &strategy_b);
+
+    let user = Address::generate(&env);
+    StellarAssetClient::new(&env, &asset).mint(&user, &1_000_0000000);
+    client.deposit(&user, &1_000_0000000);
+
+    // Allocate only to strategy_b so strategy_a stays dry.
+    client.allocate(&keeper, &strategy_b, &970_0000000);
+    assert_eq!(
+        MockStrategyClient::new(&env, &strategy_a).balance_of(),
+        0
+    );
+
+    // Redeem half the user's position. idle (30) is short, waterfall runs:
+    // strategy_a returns 0 -> continue, strategy_b covers the shortfall.
+    let shares = client.balance(&user);
+    let half = shares / 2;
+    let received = client.redeem(&user, &half);
+    assert!(received > 0);
+    assert_eq!(TokenClient::new(&env, &asset).balance(&user), received);
+
+    // Sanity: vault drained strategy_b only.
+    assert_eq!(client.tracked_balance(&strategy_a), 0);
+    assert!(client.tracked_balance(&strategy_b) < 970_0000000);
+    let _ = vault_addr;
+}
+
+// ---------------------------------------------------------------------------
+// Storage: `get_bridged_timestamp` bumps the entry's TTL only when the
+// value is non-zero. Reading after a non-zero write hits the `if val != 0`
+// true-arm; the default-zero path is covered by post-init getters.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Redeem waterfall: three-strategy scenario that drains the first two in
+// sequence and leaves the third for the `remaining <= 0 -> break` arm.
+// The partial-fill on the first strategy also takes the `remaining -
+// withdrawn` (non-zero) arm of the saturating sub.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_redeem_waterfall_partial_fill_then_break_across_three_strategies() {
+    let (env, client, vault_addr, asset, keeper, admin, strategy_a) =
+        setup_vault_with_strategy();
+
+    let strategy_b = deploy_mock_strategy(&env, &admin, &vault_addr, &asset);
+    let strategy_c = deploy_mock_strategy(&env, &admin, &vault_addr, &asset);
+    client.add_strategy(&admin, &strategy_b);
+    client.add_strategy(&admin, &strategy_c);
+
+    let user = Address::generate(&env);
+    StellarAssetClient::new(&env, &asset).mint(&user, &1_000_0000000);
+    client.deposit(&user, &1_000_0000000);
+
+    // 3% buffer on 1000 = 30 idle. Allocate 300 to A and 670 to B; C stays
+    // empty so it triggers the break arm once B has satisfied the shortfall.
+    client.allocate(&keeper, &strategy_a, &300_0000000);
+    client.allocate(&keeper, &strategy_b, &670_0000000);
+
+    // Redeem everything. Waterfall: A gives 300 (remaining drops to shortfall -
+    // 300, exercising `remaining - withdrawn`), B gives the rest, then the
+    // loop iterates to C and hits `remaining <= 0 -> break`.
+    let shares = client.balance(&user);
+    client.redeem(&user, &shares);
+
+    assert_eq!(client.tracked_balance(&strategy_a), 0);
+    assert_eq!(client.tracked_balance(&strategy_b), 0);
+    assert_eq!(client.tracked_balance(&strategy_c), 0); // never touched
+    let _ = vault_addr;
+}
+
+// ---------------------------------------------------------------------------
+// Redeem waterfall: strategy returns MORE than the vault tracked (external
+// yield accrued directly into the strategy's balance). The `withdrawn >
+// tracked` saturating-sub arm must clamp new_tracked to 0 instead of
+// underflowing.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_redeem_waterfall_clamps_tracked_when_strategy_overpulls() {
+    let (env, client, _vault_addr, asset, keeper, admin, strategy_addr) =
+        setup_vault_with_strategy();
+
+    let user = Address::generate(&env);
+    StellarAssetClient::new(&env, &asset).mint(&user, &1_000_0000000);
+    client.deposit(&user, &1_000_0000000);
+
+    // Allocate 500 so tracked = 500. Then inflate strategy's underlying
+    // balance out-of-band to simulate external yield — balance = 600,
+    // tracked = 500.
+    client.allocate(&keeper, &strategy_addr, &500_0000000);
+    StellarAssetClient::new(&env, &asset).mint(&strategy_addr, &100_0000000);
+    MockStrategyClient::new(&env, &strategy_addr).simulate_yield(&admin, &100_0000000);
+
+    // total_assets = idle(500) + strategy(600) = 1100. User's shares are
+    // worth ~1100. Waterfall pulls the full 600 from the strategy, which is
+    // more than tracked(500), so new_tracked takes the clamp-to-zero arm.
+    let shares = client.balance(&user);
+    client.redeem(&user, &shares);
+
+    assert_eq!(client.tracked_balance(&strategy_addr), 0);
+}
+
+#[test]
+fn test_bridged_timestamp_bumps_ttl_when_nonzero() {
+    let (env, client, _vault_addr, _asset, _user) = init_with_fee_bps(1500);
+
+    // Default test ledger timestamp is 0; advance it so the attest writes a
+    // non-zero timestamp and the read path enters the `val != 0` true arm.
+    env.ledger().with_mut(|info| info.timestamp = 1_000_000);
+
+    let keeper = client.keeper();
+    client.attest_bridged_balance(&keeper, &1000);
+
+    let ts_first = client.bridged_timestamp();
+    assert_eq!(ts_first, 1_000_000);
+
+    // Second read on the same non-zero value re-enters the bump arm.
+    let ts_second = client.bridged_timestamp();
+    assert_eq!(ts_first, ts_second);
 }
